@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/budimanlai/go-traccar/test/helpers"
+	"github.com/budimanlai/go-traccar/helpers"
 	"github.com/eqto/go-json"
 	"github.com/valyala/fasthttp"
 )
@@ -15,16 +15,14 @@ import (
 type Traccar struct {
 	ServerUrl string
 	Token     string
-	Username  string
-	Password  string
+	basic     string
 }
 
 func NewTraccar(url string, username string, password string, token string) *Traccar {
 	return &Traccar{
 		ServerUrl: url,
 		Token:     token,
-		Username:  username,
-		Password:  password,
+		basic:     base64.StdEncoding.EncodeToString([]byte(username + ":" + password)),
 	}
 }
 
@@ -40,11 +38,9 @@ func (t *Traccar) get(endpoint string) (*fasthttp.Response, error) {
 	req.SetRequestURI(url)
 	req.Header.DisableNormalizing()
 
-	basic := base64.StdEncoding.EncodeToString([]byte(t.Username + ":" + t.Password))
-
 	// req.Header.SetContentType(`application/json`)
 	req.Header.SetMethod(fasthttp.MethodGet)
-	req.Header.Set(`Authorization`, `basic `+basic)
+	req.Header.Set(`Authorization`, `basic `+t.basic)
 
 	respClone := &fasthttp.Response{}
 	e1 := fasthttp.DoTimeout(req, resp, 60*time.Second)
@@ -55,6 +51,10 @@ func (t *Traccar) get(endpoint string) (*fasthttp.Response, error) {
 	return respClone, e1
 }
 
+/*
+ * Fetch Session information and return cookie value for web socket auth
+ * https://www.traccar.org/api-reference/#tag/Session/paths/~1session/get
+ */
 func (t *Traccar) GetSession() (string, error) {
 	params := url.Values{}
 	params.Add("token", t.Token)
@@ -90,11 +90,11 @@ func (t *Traccar) GetSession() (string, error) {
 }
 
 /*
- * Get device trips
+ * Fetch a list of ReportTrips within the time period for the Devices
+ * https://www.traccar.org/api-reference/#tag/Reports/paths/~1reports~1trips/get
  */
 func (t *Traccar) Trips(device_id []string, from string, to string, page int, start int, limit int) ([]json.Object, error) {
 	params := url.Values{}
-	params.Add("token", t.Token)
 	params.Add("from", helpers.NormalizeDateFormat(from))
 	params.Add("to", helpers.NormalizeDateFormat(to))
 	params.Add("page", strconv.Itoa(page))
@@ -106,6 +106,31 @@ func (t *Traccar) Trips(device_id []string, from string, to string, page int, st
 	}
 
 	resp, e := t.get(`reports/trips` + "?" + params.Encode())
+	if e != nil {
+		return nil, e
+	}
+
+	jsonBody, e := json.ParseArray(resp.Body())
+	if e != nil {
+		return nil, e
+	}
+	return jsonBody, nil
+}
+
+/*
+ * Fetch a list of Positions within the time period for the Devices
+ * https://www.traccar.org/api-reference/#tag/Reports/paths/~1reports~1route/get
+ */
+func (t *Traccar) Routes(device_id string, from string, to string) ([]json.Object, error) {
+	params := url.Values{}
+	params.Add("deviceId", device_id)
+	params.Add("from", helpers.NormalizeDateFormat(from))
+	params.Add("to", helpers.NormalizeDateFormat(to))
+	params.Add("page", "1")
+	params.Add("start", "0")
+	params.Add("limit", "25")
+
+	resp, e := t.get(`reports/route` + "?" + params.Encode())
 	if e != nil {
 		return nil, e
 	}
