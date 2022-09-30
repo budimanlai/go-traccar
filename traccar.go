@@ -121,7 +121,7 @@ func (t *Traccar) Trips(device_id []string, from string, to string, page int, st
  * Fetch a list of Positions within the time period for the Devices
  * https://www.traccar.org/api-reference/#tag/Reports/paths/~1reports~1route/get
  */
-func (t *Traccar) Routes(device_id string, from string, to string) ([]json.Object, error) {
+func (t *Traccar) Route(device_id string, from string, to string) ([]json.Object, error) {
 	params := url.Values{}
 	params.Add("deviceId", device_id)
 	params.Add("from", helpers.NormalizeDateFormat(from))

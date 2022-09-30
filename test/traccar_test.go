@@ -23,7 +23,7 @@ func TestRoute(t *testing.T) {
 	from := "2022-09-27 03:01:17"
 	to := "2022-09-27 03:23:05"
 
-	resp, e := tObject.Routes("98", from, to)
+	resp, e := tObject.Route("98", from, to)
 	if e != nil {
 		fmt.Println(e.Error())
 	} else {
